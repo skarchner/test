@@ -1,0 +1,189 @@
+---
+title: "Data wrangling"
+Output: html_document
+---
+## Load libraries
+```{r}
+library(tidyverse) # install.packages("tidyverse")
+```
+## Read data
+```{r}
+## read gapminder csv. Note the readr:: prefix identifies which package it's in
+gapminder <- readr::read_csv('https://raw.githubusercontent.com/OHI-Science/data-science-training/master/data/gapminder.csv')
+```
+# inspect the dataset
+```{r}
+gapminder # looks at all the data
+head(gapminder) #gives the first 6 lines by default
+
+# summary statistics
+str (gapminder)
+c(nrow(gapminder), ncol(gapminder))
+```
+
+# dplyr
+```{r}
+filter(gapminder, lifeExp < 29)
+filter(gapminder, country == "Mexico")
+filter(gapminder, country %in% c("Mexico", "Peru"))
+filter(gapminder, country == "Mexico", year ==2002)
+```
+```{r}
+sweden <- filter(gapminder, country == "Sweden") # assign variable sweden as the data for Country Sweden
+mean(sweden$lifeExp) # mean of lifeExp in Sweden
+#select by columns
+select(gapminder, year, lifeExp) # select only these columns
+select(gapminder, -continent, -lifeExp) # - will exclude these columns
+# use select and filter together
+gap_cambodia <- filter(gapminder, country == "Cambodia")
+gap_cambodia2 <- select(gap_cambodia, -continent, -lifeExp)
+```
+
+# Pipe Operator
+```{r}
+gapminder %>% head(3)
+```
+```{r}
+gap_cambodia <- gapminder %>%
+  filter(country == "Cambodia") %>%
+  select(-continent, -lifeExp)
+```
+# mutate adds new variables
+# create new column with the product of two other columns
+```{r}
+gapminder %>%
+  mutate(gdp = pop * gdpPercap)
+```
+##Challenge:
+#Find the maximum gdpPerCap of Egypt and Vietnam. Create a new column.
+```{r}
+gapminder %>%
+  filter(country %in% c("Egypt", "Vietnam")) %>%
+  mutate(gdp = pop * gdpPercap) %>%
+  mutate(max_gdp = max(gdp))
+```
+# OR
+```{r}
+gapminder %>%
+  filter(country %in% c("Egypt", "Vietnam")) %>%
+  mutate(gdp = pop * gdpPercap, 
+         max_gdp = max(gdp))
+```
+```{r}
+library(tidyverse)
+```
+```{r}
+## read gapminder csv. Note the readr:: prefix identifies which package it's in
+gapminder <- readr::read_csv('https://raw.githubusercontent.com/OHI-Science/data-science-training/master/data/gapminder.csv')
+```
+# group_by
+```{r}
+gapminder %>%
+  group_by(country) %>%
+  mutate(gdp = pop * gdpPercap,
+         max_gdp = max(gdp))
+```
+```{r}
+gap_summarized <- gapminder %>% #creating an object gap_summarized, objects are under Environment tab
+  group_by(country) %>%
+  mutate(gdp = pop * gdpPercap) %>%
+  summarize(max_gdp = max(gdp)) %>%
+  ungroup() %>%
+  arrange(desc(max_gdp))
+
+gap_summarized # calling gap_summarized to see the results
+```
+  
+```{r}
+co2 <- read_csv("https://raw.githubusercontent.com/OHI-Science/data-science-training/master/data/co2.csv")
+```
+```{r}
+## create a new gapminder variable with only the 2007 data
+gap_2007 <- gapminder %>%
+  filter(year == 2007)
+
+gap_2007
+
+gap_2007 %>% dim()
+
+## left_join gap_2007 to co2
+lj <- left_join(gap_2007, co2, by = "country") # have to put "around country"
+
+# another way to write this
+lj <- gap_2007 %>%
+  left_join(co2, by = "country")
+
+rj <- right_join(gap_2007, co2, by = "country")
+# the same as
+lj2 <- left_join(co2, gap_2007, by = "country")
+
+gap_wide <- readr::read_csv('https://raw.githubusercontent.com/OHI-Science/data-science-training/master/data/gapminder_wide.csv')
+
+View(gap_wide)
+colnames(gap_wide)
+
+## tidyr::gather() combines all observation types into one column
+gap_long <- gap_wide %>% 
+  gather(key = obstype_year, # obstype_year can be x or whatever
+         value = obs_values,
+         -continent, -country) %>% # keep these columns as is
+    separate(obstype_year,
+             into = c("obs_type", "year"),
+             sep = "_", ## tidyr::separate()
+            convert = TRUE) ## convert Year from character to number
+
+str(gap_long)
+
+```
+## plot long data
+
+```{r}
+canada_df <- gap_long %>%
+  filter(country == "Canada",
+         obs_type == "lifeExp")
+
+ggplot(data = canada_df, aes(x = year, y = obs_values)) +
+  geom_line()
+```
+# plot life expectancy of all countries in the Americas
+
+```{r}
+life_df <- gap_long %>% 
+  filter(obs_type == "lifeExp",
+         continent == "Americas")
+
+ggplot(data = life_df, aes(x = year, y = obs_values, color = country)) +
+    geom_line()
+```
+## Exercise 7.5 plt the mean lifeExp of each continent during 1982-2007
+```{r}
+life_exp <- gap_long %>%
+  filter(obs_type == "lifeExp", 
+         year > 1980, year <2007) %>%
+  group_by(continent, year) %>%
+  summarize(mean_le = mean(obs_values))
+
+  ggplot(data = life_exp, aes(x = year, y = mean_le, color = continent)) +
+    geom_line() +
+    labs(x = "Year",
+         y = "Age (years)",
+         title = "Mean Life Expectancy") +
+    theme_bw()
+```
+## spread()
+```{r}
+gap_normal <- gap_long %>%
+  spread(key = obs_type,
+         value = obs_values)
+```
+# Exercise - Revert gap_long back to gap_wide
+```{r}
+gap_wide2 <- gap_long %>%
+  unite(obs_type_year, obs_type, year)%>% ## or: unite(col = obs_type_year, obs_type, year, sep = "_")
+  spread(key = obs_type_year, value = obs_values)
+```
+
+
+
+
+
